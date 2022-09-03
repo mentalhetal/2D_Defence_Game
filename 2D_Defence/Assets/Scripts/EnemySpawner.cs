@@ -5,42 +5,54 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     [SerializeField]
-    private GameObject  enemyPrefab;
-    [SerializeField]
     private GameObject  enemyHPSliderPrefab;
     [SerializeField]
     private Transform   canvasTransform;
-    [SerializeField]
-    private float       spawnTime;
     [SerializeField]
     private Transform[] wayPoints;
     [SerializeField]
     private PlayerHP    playerHP;
     [SerializeField]
     private PlayerGold  playerGold;
-    private List<Enemy> enemyList;      // 현재 맵에 존자해는 모든 적의 정보
+    private Wave        currentWave;        // 현재 웨이브 정보
+    private int         currentEnemyCount;  // 현재 웨이브에 남아있느 적 숫자
+    private List<Enemy> enemyList;          // 현재 맵에 존자해는 모든 적의 정보
 
     public List<Enemy>  EnemyList => enemyList;
+
+    public int          CurrentEnemyCount => currentEnemyCount;
+    public int          MaxEnemyCount => currentWave.maxEnemyCount;
 
     private void Awake()
     {
         enemyList = new List<Enemy>();
+    }
+
+    public void StartWave(Wave wave)
+    {
+        currentWave = wave;
+        currentEnemyCount = currentWave.maxEnemyCount;
         StartCoroutine("SpawnEnemy");
     }
 
     private IEnumerator SpawnEnemy()
     {
-        while(true)
+        int spawnEnemyCount = 0;
+
+        while(spawnEnemyCount < currentWave.maxEnemyCount)
         {
-            GameObject clone = Instantiate(enemyPrefab);
-            Enemy      enemy = clone.GetComponent<Enemy>();
+            int        enemyIndex = Random.Range(0, currentWave.enemyPrefabs.Length);
+            GameObject clone      = Instantiate(currentWave.enemyPrefabs[enemyIndex]);
+            Enemy      enemy      = clone.GetComponent<Enemy>();
 
             enemy.Setup(this, wayPoints);
             enemyList.Add(enemy);       // 리스트에 방금 생성된 적 정보 저장
 
-            SpawnEnemyHPSlider(clone);
+            SpawnEnemyHPSlider(clone);  // 적 체력 UI 생성 및 설정
 
-            yield return new WaitForSeconds(spawnTime);
+            spawnEnemyCount++;
+
+            yield return new WaitForSeconds(currentWave.spawnTime);
         }
     }
 
@@ -63,6 +75,8 @@ public class EnemySpawner : MonoBehaviour
         {
             playerGold.CurrentGold += gold;
         }
+
+        currentEnemyCount--;
 
         enemyList.Remove(enemy);
 

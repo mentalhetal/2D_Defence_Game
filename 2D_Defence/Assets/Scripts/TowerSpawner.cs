@@ -31,7 +31,9 @@ public class TowerSpawner : MonoBehaviour
 
         playerGold.CurrentGold -= towerBuildGold;
 
-        GameObject clone = Instantiate(towerPrefab, tileTransform.position, Quaternion.identity);
+        // 타일보다 화면상으로 위에 있게 하기 위해 z축 -1에 배치
+        Vector3 position = tileTransform.position + Vector3.back;
+        GameObject clone = Instantiate(towerPrefab, position, Quaternion.identity);
         // 타워 무기에 enemySpawner 정보 전달
         clone.GetComponent<TowerWeapon>().Setup(enemySpawner);
     }
