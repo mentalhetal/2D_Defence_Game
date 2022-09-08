@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public enum WeaponType  { Cannon = 0, Laser, Slow, }
+public enum WeaponType  { Cannon = 0, Laser, Slow, Buff, }
 public enum WeaponState { SearchTarget = 0, TryAttackCannon, TryAttackLaser, }
 
 public class TowerWeapon : MonoBehaviour
@@ -30,22 +30,41 @@ public class TowerWeapon : MonoBehaviour
     private WeaponState         weaponState = WeaponState.SearchTarget;
     private Transform           attackTarget = null;
     private SpriteRenderer      spriteRenderer;
+    private TowerSpawner        towerSpawner;
     private EnemySpawner        enemySpawner;
     private PlayerGold          playerGold;
     private Tile                ownerTile;
+
+    private float               addedDamage;
+    private int                 buffLevel;
 
     public Sprite       TowerSprite => towerTemplate.weapon[level].sprite;
     public float        Damage      => towerTemplate.weapon[level].damage;
     public float        Rate        => towerTemplate.weapon[level].rate;
     public float        Range       => towerTemplate.weapon[level].range;
+    public int          UpgradeCost => Level < MaxLevel ? towerTemplate.weapon[level+1].cost : 0;
+    public int          SellCost    => towerTemplate.weapon[level].sell;
     public int          Level       => level + 1;
     public int          MaxLevel    => towerTemplate.weapon.Length;
     public float        Slow        => towerTemplate.weapon[level].slow;
+    public float        Buff        => towerTemplate.weapon[level].buff;
     public WeaponType   WeaponType  => weaponType;
 
-    public void Setup(EnemySpawner enemySpawner, PlayerGold playerGold, Tile ownerTile)
+    public float        AddedDamage
+    {
+        set => addedDamage = Mathf.Max(0, value);
+        get => addedDamage;
+    }
+    public int          BuffLevel
+    {
+        set => buffLevel = Mathf.Max(0, value);
+        get => buffLevel;
+    }
+
+    public void Setup(TowerSpawner towerSpawner, EnemySpawner enemySpawner, PlayerGold playerGold, Tile ownerTile)
     {
         spriteRenderer      = GetComponent<SpriteRenderer>();
+        this.towerSpawner   = towerSpawner;
         this.enemySpawner   = enemySpawner;
         this.playerGold     = playerGold;
         this.ownerTile      = ownerTile;
@@ -133,6 +152,31 @@ public class TowerWeapon : MonoBehaviour
         }
     }
 
+    public void OnBuffAroundTower()
+    {
+        GameObject[] towers = GameObject.FindGameObjectsWithTag("Tower");
+
+        for (int i = 0; i < towers.Length; ++i)
+        {
+            TowerWeapon weapon = towers[i].GetComponent<TowerWeapon>();
+
+            if (weapon.BuffLevel > Level)
+            {
+                continue;
+            }
+
+            if (Vector3.Distance(weapon.transform.position, transform.position) <= towerTemplate.weapon[level].range)
+            {
+                if (weapon.WeaponType == WeaponType.Cannon || weapon.WeaponType == WeaponType.Laser)
+                {
+                    weapon.AddedDamage = weapon.Damage * (towerTemplate.weapon[level].buff);
+
+                    weapon.BuffLevel = Level;
+                }
+            }
+        }
+    }
+
     private Transform FindClosestAttackTarget()
     {
         float closestDistSqr = Mathf.Infinity;
@@ -171,7 +215,8 @@ public class TowerWeapon : MonoBehaviour
     private void SpawnProjectile()
     {
         GameObject clone = Instantiate(projectilePrefab, spawnPoint.position, Quaternion.identity);
-        clone.GetComponent<Projectile>().Setup(attackTarget, towerTemplate.weapon[level].damage);
+        float damage = towerTemplate.weapon[level].damage + AddedDamage;
+        clone.GetComponent<Projectile>().Setup(attackTarget, damage);
     }
 
     private void EnableLaser()
@@ -204,8 +249,9 @@ public class TowerWeapon : MonoBehaviour
                 lineRenderer.SetPosition(1, new Vector3(hit[i].point.x, hit[i].point.y, 0) + Vector3.back);
                 // 타격 효과 위치 설정
                 hitEffect.position = hit[i].point;
+                float damage = towerTemplate.weapon[level].damage + AddedDamage;
                 // 적 체력 감소 1초마다
-                attackTarget.GetComponent<EnemyHP>().TakeDamage(towerTemplate.weapon[level].damage * Time.deltaTime);
+                attackTarget.GetComponent<EnemyHP>().TakeDamage(damage * Time.deltaTime);
             }
         }
     }
@@ -226,6 +272,8 @@ public class TowerWeapon : MonoBehaviour
             lineRenderer.startWidth = 0.05f + level * 0.05f;
             lineRenderer.endWidth   = 0.05f;
         }
+
+        towerSpawner.OnBuffAllBuffTowers();
 
         return true;
     }
