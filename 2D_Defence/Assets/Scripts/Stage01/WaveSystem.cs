@@ -8,7 +8,7 @@ public class WaveSystem : MonoBehaviour
     private Wave[]       waves;                  // 현재 스테이지의 모든 웨이브 정보
     [SerializeField]
     private EnemySpawner enemySpawner;
-    private int          currentWaveIndex = -1; // 현재 웨이브 인덱스
+    private int          currentWaveIndex = -1;  // 현재 웨이브 인덱스
 
     public int           CurrentWave => currentWaveIndex+1;
     public int           MaxWave => waves.Length;
